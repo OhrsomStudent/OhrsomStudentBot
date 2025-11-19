@@ -17,18 +17,32 @@ exports.handler = async function(event) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const models = await genAI.listModels();
     
-    const modelList = models.map(m => ({
-      name: m.name,
-      displayName: m.displayName,
-      supportedMethods: m.supportedGenerationMethods
-    }));
+    // Try different model names to see which works
+    const modelsToTry = [
+      'gemini-pro',
+      'gemini-1.5-pro',
+      'gemini-1.5-flash',
+      'models/gemini-pro',
+      'models/gemini-1.5-pro', 
+      'models/gemini-1.5-flash'
+    ];
+    
+    const results = [];
+    for (const modelName of modelsToTry) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent("Hi");
+        results.push({ model: modelName, status: "✓ Works", response: result.response.text().slice(0, 50) });
+      } catch (err) {
+        results.push({ model: modelName, status: "✗ Failed", error: err.message.slice(0, 100) });
+      }
+    }
 
     return {
       statusCode: 200,
       headers: { ...cors(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ models: modelList, count: modelList.length })
+      body: JSON.stringify({ results })
     };
   } catch (err) {
     return {
