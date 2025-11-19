@@ -105,7 +105,7 @@ def main():
         # Initialize the bot
         bot = FAQBot(faq_file_path=faq_file)
         
-        # Start interactive chat
+        # Start interactive chats
         bot.chat()
         
     except Exception as e:
