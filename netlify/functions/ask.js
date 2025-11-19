@@ -28,7 +28,7 @@ try {
   faqContent = `[FAQ content could not be loaded: ${e.message}]`;
 }
 
-const SYSTEM_PROMPT = `You are the Ohrsom Gap Year FAQ assistant. You answer ONLY from the official FAQ text provided. If the FAQ does not contain the answer, say you don't have that information and recommend contacting programme support. Be concise, warm, professional. Do not invent details.\n\nFAQ:\n${faqContent}\n\nInstructions:\n- Use bullet points for multi-part answers.\n- Keep replies under 180 words.\n- If dates are asked, confirm them explicitly.\n- If medical, visa, or travel policies are asked, repeat key requirements clearly.\n`;
+const SYSTEM_PROMPT = `You are the Ohrsom Gap Year FAQ assistant. Answer ONLY using the information in the FAQ below. If the FAQ does not contain the answer, say you don't have that information and suggest contacting programme support. Do not invent details.\n\nSTYLE:\n- Respond directly with the answer only.\n- Do NOT say phrases like "According to the FAQ", "Here's", "Answer:", or mention the FAQ/source.\n- Use a concise, professional tone.\n- Use bullet points for multi-part answers.\n- Keep replies under 160 words.\n- If dates are asked, state them clearly.\n- If discussing medical, visa, or travel policies, highlight key requirements.\n\nFAQ:\n${faqContent}\n`;
 
 exports.handler = async function(event) {
   // ESM-only package: import dynamically inside the handler
@@ -69,7 +69,7 @@ exports.handler = async function(event) {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "models/gemini-2.5-flash" });
 
-    const fullPrompt = `${SYSTEM_PROMPT}\nUser Question: ${question}\nAnswer:`;
+    const fullPrompt = `${SYSTEM_PROMPT}\nUser question: ${question}\nRespond with the answer only, following the style rules.`;
     const result = await model.generateContent(fullPrompt);
     const answer = result.response.text();
 
