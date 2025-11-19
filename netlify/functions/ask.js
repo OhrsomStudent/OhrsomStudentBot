@@ -1,7 +1,6 @@
 // Netlify Function: ask.js
 // Handles chat requests and calls Gemini API with FAQ context.
 
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fs = require("fs");
 const path = require("path");
 
@@ -32,6 +31,12 @@ try {
 const SYSTEM_PROMPT = `You are the Ohrsom Gap Year FAQ assistant. You answer ONLY from the official FAQ text provided. If the FAQ does not contain the answer, say you don't have that information and recommend contacting programme support. Be concise, warm, professional. Do not invent details.\n\nFAQ:\n${faqContent}\n\nInstructions:\n- Use bullet points for multi-part answers.\n- Keep replies under 180 words.\n- If dates are asked, confirm them explicitly.\n- If medical, visa, or travel policies are asked, repeat key requirements clearly.\n`;
 
 exports.handler = async function(event) {
+  // ESM-only package: import dynamically inside the handler
+  const { GoogleGenerativeAI } = await import("@google/generative-ai");
+
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers: corsHeaders(), body: "" };
+  }
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
@@ -74,6 +79,7 @@ exports.handler = async function(event) {
       body: JSON.stringify({ answer })
     };
   } catch (err) {
+    console.error("Gemini function error:", err);
     return {
       statusCode: 500,
       headers: corsHeaders(),

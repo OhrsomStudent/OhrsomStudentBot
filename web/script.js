@@ -35,8 +35,21 @@ async function askBot(question) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question })
     });
-    if(!res.ok) throw new Error('Network error: ' + res.status);
-    const data = await res.json();
+    const contentType = res.headers.get('content-type') || '';
+    const isJson = contentType.includes('application/json');
+    if(!res.ok) {
+      let errMsg = 'Network error: ' + res.status;
+      if (isJson) {
+        try {
+          const body = await res.json();
+          if (body && body.error) errMsg += ' - ' + body.error;
+        } catch {}
+      } else {
+        try { errMsg += ' - ' + (await res.text()).slice(0,300); } catch {}
+      }
+      throw new Error(errMsg);
+    }
+    const data = isJson ? await res.json() : { answer: await res.text() };
     loadingNode.querySelector('.bubble').textContent = data.answer || '[No answer returned]';
   } catch (err) {
     loadingNode.querySelector('.bubble').textContent = 'Error: ' + err.message;

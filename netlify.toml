@@ -3,6 +3,12 @@
   publish = "web"
   functions = "netlify/functions"
 
+[build.environment]
+  NODE_VERSION = "18"
+
+[functions]
+  included_files = ["faq.txt"]
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
