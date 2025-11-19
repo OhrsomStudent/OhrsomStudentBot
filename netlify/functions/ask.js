@@ -40,7 +40,7 @@ exports.handler = async function(event) {
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      headers: corsHeaders(),
+      headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: "Method Not Allowed" })
     };
   }
@@ -51,7 +51,7 @@ exports.handler = async function(event) {
   if (!question) {
     return {
       statusCode: 400,
-      headers: corsHeaders(),
+      headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: "Missing 'question'" })
     };
   }
@@ -60,7 +60,7 @@ exports.handler = async function(event) {
   if (!apiKey) {
     return {
       statusCode: 500,
-      headers: corsHeaders(),
+      headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: "API key not configured" })
     };
   }
@@ -75,14 +75,14 @@ exports.handler = async function(event) {
 
     return {
       statusCode: 200,
-      headers: corsHeaders(),
+      headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ answer })
     };
   } catch (err) {
     console.error("Gemini function error:", err);
     return {
       statusCode: 500,
-      headers: corsHeaders(),
+      headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: err.message || 'Gemini request failed' })
     };
   }
