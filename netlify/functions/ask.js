@@ -56,6 +56,19 @@ exports.handler = async function(event) {
     };
   }
 
+  // Optional shared secret protection
+  const requiredSecret = process.env.FUNCTION_SECRET;
+  if (requiredSecret) {
+    const provided = event.headers['x-site-key'] || event.headers['X-Site-Key'];
+    if (provided !== requiredSecret) {
+      return {
+        statusCode: 403,
+        headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Forbidden' })
+      };
+    }
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return {
@@ -89,9 +102,13 @@ exports.handler = async function(event) {
 }
 
 function corsHeaders() {
+  const allowed = process.env.ALLOWED_ORIGIN || 'https://ohrsombot.netlify.app';
+  // Allow localhost for local dev alongside production
+  const origin = allowed.includes('localhost') ? allowed : undefined;
   return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Origin': origin || 'https://ohrsombot.netlify.app',
+    'Vary': 'Origin',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Site-Key',
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
 }
