@@ -67,7 +67,7 @@ exports.handler = async function(event) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "models/gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "models/gemini-2.5-flash" });
 
     const fullPrompt = `${SYSTEM_PROMPT}\nUser Question: ${question}\nAnswer:`;
     const result = await model.generateContent(fullPrompt);
