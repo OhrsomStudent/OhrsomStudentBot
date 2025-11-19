@@ -16,33 +16,39 @@ exports.handler = async function(event) {
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
+    // Test the API key directly with a REST call
+    const testUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
     
-    // Try different model names to see which works
-    const modelsToTry = [
-      'gemini-pro',
-      'gemini-1.5-pro',
-      'gemini-1.5-flash',
-      'models/gemini-pro',
-      'models/gemini-1.5-pro', 
-      'models/gemini-1.5-flash'
-    ];
+    const response = await fetch(testUrl);
+    const data = await response.json();
     
-    const results = [];
-    for (const modelName of modelsToTry) {
-      try {
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent("Hi");
-        results.push({ model: modelName, status: "✓ Works", response: result.response.text().slice(0, 50) });
-      } catch (err) {
-        results.push({ model: modelName, status: "✗ Failed", error: err.message.slice(0, 100) });
-      }
+    if (!response.ok) {
+      return {
+        statusCode: 200,
+        headers: { ...cors(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          error: "API key issue",
+          status: response.status,
+          details: data,
+          keyPrefix: apiKey.slice(0, 10) + "..."
+        })
+      };
     }
+
+    const availableModels = data.models
+      ? data.models
+          .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+          .map(m => ({ name: m.name, displayName: m.displayName }))
+      : [];
 
     return {
       statusCode: 200,
       headers: { ...cors(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ results })
+      body: JSON.stringify({ 
+        success: true,
+        availableModels,
+        count: availableModels.length
+      })
     };
   } catch (err) {
     return {
