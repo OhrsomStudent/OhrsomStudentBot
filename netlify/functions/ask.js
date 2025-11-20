@@ -1,34 +1,74 @@
 // Netlify Function: ask.js
 // Handles chat requests and calls Gemini API with FAQ context.
+// Fetches FAQ from Google Doc (FAQ_URL) with 10min cache, falls back to local file.
 
 const fs = require("fs");
 const path = require("path");
+const fetch = require('node-fetch');
 
-// Load FAQ content (synchronously at cold start)
-let faqContent = "";
-try {
-  // Try multiple possible paths
-  const possiblePaths = [
-    path.join(__dirname, "..", "..", "faq.txt"),
-    path.join(process.cwd(), "faq.txt"),
-    "/var/task/faq.txt"
-  ];
-  
-  for (const faqPath of possiblePaths) {
-    if (fs.existsSync(faqPath)) {
-      faqContent = fs.readFileSync(faqPath, "utf-8");
-      break;
+// FAQ cache (in-memory, 10 min TTL)
+let cachedFAQ = null;
+let cacheTime = 0;
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+async function getFAQ() {
+  const FAQ_URL = process.env.FAQ_URL;
+  const now = Date.now();
+  if (FAQ_URL) {
+    if (cachedFAQ && (now - cacheTime < CACHE_TTL)) {
+      return cachedFAQ;
     }
+    try {
+      const res = await fetch(FAQ_URL);
+      if (!res.ok) throw new Error('Failed to fetch FAQ');
+      const text = await res.text();
+      cachedFAQ = text;
+      cacheTime = now;
+      return text;
+    } catch (e) {
+      // Fallback to local
+      return loadLocalFAQ();
+    }
+  } else {
+    return loadLocalFAQ();
   }
-  
-  if (!faqContent) {
-    faqContent = "[FAQ content could not be loaded - file not found]";
-  }
-} catch (e) {
-  faqContent = `[FAQ content could not be loaded: ${e.message}]`;
 }
 
-const SYSTEM_PROMPT = `You are the Ohrsom Gap Year FAQ assistant. Answer ONLY using the information in the FAQ below. If the FAQ does not contain the answer, say you don't have that information and suggest contacting programme support. Do not invent details.\n\nSTYLE:\n- Respond directly with the answer only.\n- Do NOT say phrases like "According to the FAQ", "Here's", "Answer:", or mention the FAQ/source.\n- Use a concise, professional tone.\n- Use bullet points for multi-part answers.\n- Keep replies under 160 words.\n- If dates are asked, state them clearly.\n- If discussing medical, visa, or travel policies, highlight key requirements.\n\nFAQ:\n${faqContent}\n`;
+function loadLocalFAQ() {
+  try {
+    const possiblePaths = [
+      path.join(__dirname, "..", "..", "faq.txt"),
+      path.join(process.cwd(), "faq.txt"),
+      "/var/task/faq.txt"
+    ];
+    for (const faqPath of possiblePaths) {
+      if (fs.existsSync(faqPath)) {
+        return fs.readFileSync(faqPath, "utf-8");
+      }
+    }
+    return "[FAQ content could not be loaded - file not found]";
+  } catch (e) {
+    return `[FAQ content could not be loaded: ${e.message}]`;
+  }
+}
+
+async function buildSystemPrompt() {
+  const faqContent = await getFAQ();
+  return `You are the Ohrsom Gap Year FAQ assistant. Answer ONLY using the information in the FAQ below. If the FAQ does not contain the answer, say you don't have that information and suggest contacting programme support. Do not invent details.
+
+STYLE:
+- Respond directly with the answer only.
+- Do NOT say phrases like "According to the FAQ", "Here's", "Answer:", or mention the FAQ/source.
+- Use a concise, professional tone.
+- Use bullet points for multi-part answers.
+- Keep replies under 160 words.
+- If dates are asked, state them clearly.
+- If discussing medical, visa, or travel policies, highlight key requirements.
+
+FAQ:
+${faqContent}
+`;
+}
 
 exports.handler = async function(event) {
   // ESM-only package: import dynamically inside the handler
