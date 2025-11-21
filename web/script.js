@@ -30,7 +30,7 @@ function addLoading() {
 async function askBot(question) {
   const loadingNode = addLoading();
   try {
-    const res = await fetch('/.netlify/functions/ask', {
+    const res = await fetch('/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question })
