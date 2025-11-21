@@ -1,8 +1,5 @@
 // Vercel Serverless Function: ask.js
-// Handles chat requests and calls Gemini API with FAQ context.
-// Fetches FAQ from Google Doc (FAQ_URL) with 10min cache
-
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// CommonJS format for Vercel compatibility
 
 // FAQ cache (in-memory, 10 min TTL)
 let cachedFAQ = null;
@@ -50,7 +47,10 @@ ${faqContent}
 `;
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
+  // Dynamic import for ESM-only package
+  const { GoogleGenerativeAI } = await import('@google/generative-ai');
+  
   // CORS headers
   const origin = process.env.ALLOWED_ORIGIN || 'https://ohrsom-bot.vercel.app';
   res.setHeader('Access-Control-Allow-Origin', origin);
@@ -88,4 +88,4 @@ export default async function handler(req, res) {
     console.error('Gemini API error:', err);
     return res.status(500).json({ error: err.message || 'Failed to get answer' });
   }
-}
+};
