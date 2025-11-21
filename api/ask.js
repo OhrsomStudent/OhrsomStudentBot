@@ -47,7 +47,7 @@ ${faqContent}
 `;
 }
 
-module.exports = async function handler(req, res) {
+module.exports = async (req, res) => {
   // Dynamic import for ESM-only package
   const { GoogleGenerativeAI } = await import('@google/generative-ai');
   
