@@ -1,6 +1,3 @@
-// Vercel Serverless Function: ask.js
-// CommonJS format for Vercel compatibility
-
 // FAQ cache (in-memory, 10 min TTL)
 let cachedFAQ = null;
 let cacheTime = 0;
@@ -47,7 +44,7 @@ ${faqContent}
 `;
 }
 
-module.exports = async (req, res) => {
+export default async function (req, res) {
   // Dynamic import for ESM-only package
   const { GoogleGenerativeAI } = await import('@google/generative-ai');
   
@@ -88,4 +85,4 @@ module.exports = async (req, res) => {
     console.error('Gemini API error:', err);
     return res.status(500).json({ error: err.message || 'Failed to get answer' });
   }
-};
+}
