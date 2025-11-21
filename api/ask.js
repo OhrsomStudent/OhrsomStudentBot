@@ -4,7 +4,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const fetch = require('node-fetch');
+// Use native fetch in Node 18+ (Vercel default)
 
 // FAQ cache (in-memory, 10 min TTL)
 let cachedFAQ = null;
