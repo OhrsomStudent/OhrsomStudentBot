@@ -1,17 +1,9 @@
 {
-  "buildCommand": "npm install",
-  "outputDirectory": "web",
   "functions": {
     "api/**/*.js": {
       "memory": 1024,
       "maxDuration": 10,
       "includeFiles": "faq.txt"
     }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/web/$1"
-    }
-  ]
+  }
 }
