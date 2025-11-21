@@ -1,10 +1,8 @@
-// Netlify Function: ask.js
+// Vercel Serverless Function: ask.js
 // Handles chat requests and calls Gemini API with FAQ context.
-// Fetches FAQ from Google Doc (FAQ_URL) with 10min cache, falls back to local file.
+// Fetches FAQ from Google Doc (FAQ_URL) with 10min cache
 
-const fs = require("fs");
-const path = require("path");
-// Use native fetch in Node 18+ (Vercel default)
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // FAQ cache (in-memory, 10 min TTL)
 let cachedFAQ = null;
@@ -26,29 +24,11 @@ async function getFAQ() {
       cacheTime = now;
       return text;
     } catch (e) {
-      // Fallback to local
-      return loadLocalFAQ();
+      console.error('Failed to fetch FAQ from Google Doc:', e);
+      return "[FAQ content could not be loaded from Google Doc]";
     }
   } else {
-    return loadLocalFAQ();
-  }
-}
-
-function loadLocalFAQ() {
-  try {
-    const possiblePaths = [
-      path.join(__dirname, "..", "..", "faq.txt"),
-      path.join(process.cwd(), "faq.txt"),
-      "/var/task/faq.txt"
-    ];
-    for (const faqPath of possiblePaths) {
-      if (fs.existsSync(faqPath)) {
-        return fs.readFileSync(faqPath, "utf-8");
-      }
-    }
-    return "[FAQ content could not be loaded - file not found]";
-  } catch (e) {
-    return `[FAQ content could not be loaded: ${e.message}]`;
+    return "[FAQ_URL not set - please configure in Vercel environment variables]";
   }
 }
 
@@ -70,85 +50,42 @@ ${faqContent}
 `;
 }
 
-exports.handler = async function(event) {
-  // ESM-only package: import dynamically inside the handler
-  const { GoogleGenerativeAI } = await import("@google/generative-ai");
+export default async function handler(req, res) {
+  // CORS headers
+  const origin = process.env.ALLOWED_ORIGIN || 'https://ohrsom-bot.vercel.app';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers: corsHeaders(), body: "" };
-  }
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: "Method Not Allowed" })
-    };
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
 
-  let body;
-  try { body = JSON.parse(event.body || '{}'); } catch { body = {}; }
-  const question = (body.question || '').trim();
-  if (!question) {
-    return {
-      statusCode: 400,
-      headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: "Missing 'question'" })
-    };
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Optional shared secret protection
-  const requiredSecret = process.env.FUNCTION_SECRET;
-  if (requiredSecret) {
-    const provided = event.headers['x-site-key'] || event.headers['X-Site-Key'];
-    if (provided !== requiredSecret) {
-      return {
-        statusCode: 403,
-        headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Forbidden' })
-      };
-    }
+  const { question } = req.body || {};
+  if (!question || typeof question !== 'string') {
+    return res.status(400).json({ error: 'Missing question' });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return {
-      statusCode: 500,
-      headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: "API key not configured" })
-    };
+    return res.status(500).json({ error: 'API key not configured' });
   }
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "models/gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: 'models/gemini-2.5-flash' });
     const SYSTEM_PROMPT = await buildSystemPrompt();
     const fullPrompt = `${SYSTEM_PROMPT}\nUser question: ${question}\nRespond with the answer only, following the style rules.`;
     const result = await model.generateContent(fullPrompt);
     const answer = result.response.text();
-
-    return {
-      statusCode: 200,
-      headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answer })
-    };
+    
+    return res.status(200).json({ answer });
   } catch (err) {
-    console.error("Gemini function error:", err);
-    return {
-      statusCode: 500,
-      headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: err.message || 'Gemini request failed' })
-    };
+    console.error('Gemini API error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to get answer' });
   }
-}
-
-function corsHeaders() {
-  const allowed = process.env.ALLOWED_ORIGIN || 'https://ohrsombot.netlify.app';
-  // Allow localhost for local dev alongside production
-  const origin = allowed.includes('localhost') ? allowed : undefined;
-  return {
-    'Access-Control-Allow-Origin': origin || 'https://ohrsombot.netlify.app',
-    'Vary': 'Origin',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Site-Key',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS'
-  };
 }
