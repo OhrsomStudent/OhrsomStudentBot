@@ -28,7 +28,7 @@ async function getFAQ() {
 
 async function buildSystemPrompt() {
   const faqContent = await getFAQ();
-  return `You are the Ohrsom Gap Year FAQ assistant. Answer ONLY using the information in the FAQ below. If the FAQ does not contain the answer, say you don't have that information and suggest contacting programme support. Do not invent details.
+  return `You are the Ohrsom Gap Year FAQ assistant. Answer ONLY using the information in the FAQ below. If the FAQ does not contain the answer with sufficient certainty, respond starting with EXACTLY the token 'UNSURE:' followed by one short sentence explaining the FAQ lacks that detail, then optionally a brief safe suggestion (e.g. contact programme support). Do not invent details.
 
 STYLE:
 - Respond directly with the answer only.
@@ -38,6 +38,7 @@ STYLE:
 - Keep replies under 160 words.
 - If dates are asked, state them clearly.
 - If discussing medical, visa, or travel policies, highlight key requirements.
+ - If using UNSURE, do NOT use bullet points; just the UNSURE line and optional suggestion.
 
 FAQ:
 ${faqContent}
@@ -47,6 +48,7 @@ ${faqContent}
 export default async function (req, res) {
   // Dynamic import for ESM-only package
   const { GoogleGenerativeAI } = await import('@google/generative-ai');
+  const LOG_WEBHOOK_URL = process.env.LOG_WEBHOOK_URL; // optional external logging endpoint
   
   // CORS headers
   const origin = process.env.ALLOWED_ORIGIN || 'https://ohrsom-bot.vercel.app';
@@ -79,6 +81,27 @@ export default async function (req, res) {
     const fullPrompt = `${SYSTEM_PROMPT}\nUser question: ${question}\nRespond with the answer only, following the style rules.`;
     const result = await model.generateContent(fullPrompt);
     const answer = result.response.text();
+    const timestamp = new Date().toISOString();
+    const isUnsure = /^UNSURE:/i.test(answer.trim());
+
+    // Fire-and-forget logging for unanswered / unsure responses
+    if (isUnsure && LOG_WEBHOOK_URL) {
+      const payload = {
+        question,
+        answer,
+        timestamp,
+        commit: process.env.VERCEL_GIT_COMMIT_SHA || null
+      };
+      try {
+        fetch(LOG_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(err => console.error('Async logging fetch failed:', err));
+      } catch (e) {
+        console.error('Failed to initiate logging:', e);
+      }
+    }
     
     return res.status(200).json({ answer });
   } catch (err) {
