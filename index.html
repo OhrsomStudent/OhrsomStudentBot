@@ -3,36 +3,39 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ohrsom Gap Year Bot</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>Ohrsom Student Bot</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="app">
     <header class="app-header">
-      <div class="logo">🧠 Ohrsom Bot</div>
+      <img src="Ohrsom-logo.png" class="header-logo" alt="Ohrsom Student Logo" />
+      <div class="brand-title">Ohrsom Student Chat</div>
       <div class="header-actions">
         <button id="themeToggle" aria-label="Toggle theme">🌙</button>
       </div>
     </header>
     <main class="chat-wrapper">
-      <div id="chat" class="chat"></div>
-      <div class="quick-prompts" id="quickPrompts">
-        <button data-q="When does the programme start and end?">Dates</button>
-        <button data-q="What visas do I need?">Visas</button>
-        <button data-q="Tell me about rooming in Israel">Rooming</button>
-        <button data-q="What is the luggage allowance?">Luggage</button>
-        <button data-q="How do I sign up for MASA?">MASA Grant</button>
+      <div class="chat-frame">
+        <div id="chat" class="chat"></div>
+        <div class="quick-prompts" id="quickPrompts">
+          <button data-q="When does the programme start and end?">Dates</button>
+          <button data-q="What visas do I need?">Visas</button>
+          <button data-q="Tell me about rooming in Israel">Rooming</button>
+          <button data-q="What is the luggage allowance?">Luggage</button>
+          <button data-q="How do I sign up for MASA?">MASA Grant</button>
+        </div>
       </div>
     </main>
     <form id="chatForm" class="composer" autocomplete="off">
       <textarea id="message" rows="1" placeholder="Ask about the Ohrsom Gap Year..." required></textarea>
-      <button type="submit" id="sendBtn">Send</button>
+      <button type="submit" id="sendBtn"><span>Send</span></button>
     </form>
     <footer class="footer">
-      <small>Answers are based strictly on the provided Ohrsom FAQ. If something is not covered, please contact support.</small>
+      <small>Answers are based strictly on the Ohrsom FAQ. If something is not covered, staff can assist directly.</small>
     </footer>
   </div>
   <template id="message-template">
