@@ -100,7 +100,7 @@ export default async function (req, res) {
       answer = UNSURE_TEMPLATE;
     }
 
-    // Fire-and-forget logging for unanswered / unsure responses (original simple logic)
+    // Reliable logging for UNSURE responses (await to ensure delivery before function exits)
     if (isUnsure && LOG_WEBHOOK_URL) {
       const payload = {
         question,
@@ -108,15 +108,20 @@ export default async function (req, res) {
         timestamp,
         commit: process.env.VERCEL_GIT_COMMIT_SHA || null
       };
-      console.log('Logging UNSURE question:', payload.question.substring(0, 50));
+      console.log('Logging UNSURE question (awaiting):', payload.question.substring(0, 50));
       try {
-        fetch(LOG_WEBHOOK_URL, {
+        const logRes = await fetch(LOG_WEBHOOK_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
-        }).catch(err => console.error('Async logging fetch failed:', err));
+        });
+        if (!logRes.ok) {
+          console.error('Logging endpoint responded with non-OK status:', logRes.status, await logRes.text().catch(() => '')); 
+        } else {
+          console.log('UNSURE question logged successfully');
+        }
       } catch (e) {
-        console.error('Failed to initiate logging:', e);
+        console.error('Failed to log UNSURE question:', e);
       }
     }
     
