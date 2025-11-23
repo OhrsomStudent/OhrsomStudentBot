@@ -105,7 +105,13 @@ export default async function (req, res) {
       timeoutPromise
     ]);
     
-    let answer = result.response.text();
+    let answer = result?.response?.text();
+    
+    // Validate answer
+    if (!answer || typeof answer !== 'string' || answer.trim().length === 0) {
+      throw new Error('Empty response from AI model');
+    }
+    
     const timestamp = new Date().toISOString();
     // Robust UNSURE detection: ignore leading whitespace and case
     const firstNonEmptyLine = answer.split(/\n+/).find(l => l.trim().length) || '';
@@ -144,6 +150,13 @@ export default async function (req, res) {
     if (err.message === 'Response timeout') {
       return res.status(200).json({ 
         answer: "The response is taking longer than expected. Please try rephrasing your question or ask something more specific from the FAQ." 
+      });
+    }
+    
+    // Handle empty response
+    if (err.message === 'Empty response from AI model') {
+      return res.status(200).json({ 
+        answer: "I couldn't generate a response. Please try asking your question again or rephrase it." 
       });
     }
     
