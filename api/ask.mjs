@@ -84,6 +84,7 @@ export default async function (req, res) {
     return res.status(500).json({ error: 'API key not configured' });
   }
 
+  const startTime = Date.now();
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ 
@@ -106,15 +107,31 @@ export default async function (req, res) {
       timeoutPromise
     ]);
     
-    console.log('Raw API result:', JSON.stringify(result, null, 2));
-    
-    let answer = result?.response?.text();
-    
-    console.log('Extracted answer:', answer);
-    
-    // Validate answer
-    if (!answer || typeof answer !== 'string' || answer.trim().length === 0) {
-      console.error('Invalid answer - result:', result);
+    // Robust answer extraction helper
+    function extractAnswer(r) {
+      if (!r) return '';
+      try {
+        const direct = r.response?.text?.();
+        if (direct && direct.trim()) return direct.trim();
+        const candidates = r.response?.candidates || r.candidates;
+        if (Array.isArray(candidates) && candidates.length) {
+          const parts = candidates[0].content?.parts;
+          if (Array.isArray(parts) && parts.length) {
+            const joined = parts.map(p => p.text || '').join('\n').trim();
+            if (joined) return joined;
+          }
+        }
+      } catch (e) {
+        console.error('extractAnswer error:', e);
+      }
+      return '';
+    }
+
+    let answer = extractAnswer(result);
+    console.log('Answer after extraction length:', answer.length);
+
+    if (!answer) {
+      console.error('Empty answer after extraction. Raw result snippet:', JSON.stringify(result).substring(0, 400));
       throw new Error('Empty response from AI model');
     }
     
@@ -129,14 +146,19 @@ export default async function (req, res) {
     }
 
     // Fire-and-forget logging for unanswered / unsure responses
-    if (isUnsure && LOG_WEBHOOK_URL) {
+    const durationMs = Date.now() - startTime;
+    console.log('Meta:', { durationMs, isUnsure, answerChars: answer.length, questionChars: question.length });
+
+    if (LOG_WEBHOOK_URL && (isUnsure || process.env.DEBUG_LOG_ALL === '1')) {
       const payload = {
         question,
         answer,
         timestamp,
-        commit: process.env.VERCEL_GIT_COMMIT_SHA || null
+        commit: process.env.VERCEL_GIT_COMMIT_SHA || null,
+        isUnsure,
+        durationMs
       };
-      console.log('Logging UNSURE question:', payload.question.substring(0, 50));
+      console.log('Logging payload (conditional):', { isUnsure, durationMs, qPreview: question.substring(0,60) });
       try {
         fetch(LOG_WEBHOOK_URL, {
           method: 'POST',
@@ -147,7 +169,9 @@ export default async function (req, res) {
         console.error('Failed to initiate logging:', e);
       }
     }
-    
+    if (process.env.DEBUG_RESPONSE === '1') {
+      return res.status(200).json({ answer, meta: { isUnsure, durationMs, answerLength: answer.length } });
+    }
     return res.status(200).json({ answer });
   } catch (err) {
     console.error('Gemini API error:', err);
