@@ -1,4 +1,4 @@
-// FAQ cache (in-memory, 10 min TTL)
+﻿// FAQ cache (in-memory, 10 min TTL)
 let cachedFAQ = null;
 let cacheTime = 0;
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
@@ -85,7 +85,7 @@ export default async function (req, res) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'models/gemini-2.0-flash-exp' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const SYSTEM_PROMPT = await buildSystemPrompt();
     const fullPrompt = `${SYSTEM_PROMPT}\nUser question: ${question}\nRespond with the answer only, following the style rules.`;
     const result = await model.generateContent(fullPrompt);
