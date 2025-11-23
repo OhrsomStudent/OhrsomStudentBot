@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ohrsom Student Bot</title>
+  <title>Ohrsom Student Chat</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -11,33 +11,43 @@
 </head>
 <body>
   <div class="app">
+    <!-- Logo Section Above Everything -->
+    <div class="logo-section">
+      <img src="Ohrsom-logo.png" class="header-logo" alt="Ohrsom Student Logo" />
+    </div>
+
+    <!-- Title Bar -->
     <header class="app-header">
-      <img src="/Ohrsom-logo.png" class="header-logo" alt="Ohrsom Student Logo" />
       <div class="brand-title">Ohrsom Student Chat</div>
       <div class="header-actions">
         <button id="themeToggle" aria-label="Toggle theme">🌙</button>
       </div>
     </header>
-    <main class="chat-wrapper">
-      <div class="chat-frame">
-        <div id="chat" class="chat"></div>
-        <div class="quick-prompts" id="quickPrompts">
-          <button data-q="When does the programme start and end?">Dates</button>
-          <button data-q="What visas do I need?">Visas</button>
-          <button data-q="Tell me about rooming in Israel">Rooming</button>
-          <button data-q="What is the luggage allowance?">Luggage</button>
-          <button data-q="How do I sign up for MASA?">MASA Grant</button>
-        </div>
+
+    <!-- Chat Container -->
+    <main class="chat-container">
+      <div id="chat" class="chat"></div>
+      <div class="quick-prompts" id="quickPrompts">
+        <button data-q="When does the programme start and end?">Dates</button>
+        <button data-q="What visas do I need?">Visas</button>
+        <button data-q="Tell me about rooming in Israel">Rooming</button>
+        <button data-q="What is the luggage allowance?">Luggage</button>
+        <button data-q="How do I sign up for MASA?">MASA Grant</button>
       </div>
     </main>
+
+    <!-- Input Area -->
     <form id="chatForm" class="composer" autocomplete="off">
       <textarea id="message" rows="1" placeholder="Ask about the Ohrsom Gap Year..." required></textarea>
-      <button type="submit" id="sendBtn"><span>Send</span></button>
+      <button type="submit" id="sendBtn">Send</button>
     </form>
+
+    <!-- Footer -->
     <footer class="footer">
-      <small>Answers are based strictly on the Ohrsom FAQ. If something is not covered, staff can assist directly.</small>
+      <small>Answers based on the Ohrsom FAQ. For additional help, contact staff directly.</small>
     </footer>
   </div>
+
   <template id="message-template">
     <div class="msg"><div class="bubble"></div></div>
   </template>
