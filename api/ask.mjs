@@ -94,7 +94,7 @@ export default async function (req, res) {
     // Robust UNSURE detection: ignore leading whitespace and case
     const firstNonEmptyLine = answer.split(/\n+/).find(l => l.trim().length) || '';
     const isUnsure = /^UNSURE:/i.test(firstNonEmptyLine.trim());
-    const UNSURE_TEMPLATE = `UNSURE: This topic isn’t currently included in the FAQ, but I’ve logged your question so our team can address it.\nIf you need personal help, you can reach a staff member here:\n👉 <a href="https://wa.me/27655260003" target="_blank">Contact Staff on WhatsApp</a>`;
+    const UNSURE_TEMPLATE = `UNSURE: This topic isn’t currently included in the FAQ, but I’ve logged your question so our team can address it.\nIf you need immediate assistance, please reach out to a staff member directly.`;
     if (isUnsure) {
       // Enforce exact template regardless of model variation
       answer = UNSURE_TEMPLATE;
