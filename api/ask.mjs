@@ -28,12 +28,16 @@ async function getFAQ() {
 
 async function buildSystemPrompt() {
   const faqContent = await getFAQ();
-  return `You are the Ohrsom Gap Year FAQ assistant. Answer ONLY using the information in the FAQ below. If the FAQ does not contain the answer with sufficient certainty, respond with EXACTLY the following two lines (no changes, no extra punctuation, no additional sentences):
+  return `You are the Ohrsom Gap Year FAQ assistant. Answer questions using ONLY the information in the FAQ below.
 
-UNSURE: This topic isn’t currently included in the FAQ, but I’ve logged your question so our team can address it.
+IMPORTANT: Only respond with UNSURE if the question topic is COMPLETELY ABSENT from the FAQ or explicitly contradicts the FAQ. If the FAQ contains ANY relevant information about the topic (even partial details), provide that information. Do not say UNSURE just because you're uncertain - use the available FAQ content.
+
+If you must respond UNSURE (topic truly not covered), use EXACTLY these two lines:
+
+UNSURE: This topic isn't currently included in the FAQ, but I've logged your question so our team can address it.
 If you need immediate assistance, please reach out to a staff member directly.
 
-Do not invent details.
+Do not invent details not in the FAQ.
 
 STYLE:
 - Respond directly with the answer only.
@@ -43,7 +47,7 @@ STYLE:
 - Keep replies under 160 words.
 - If dates are asked, state them clearly.
 - If discussing medical, visa, or travel policies, highlight key requirements.
- - If using UNSURE, do NOT use bullet points; just the UNSURE line and optional suggestion.
+- If using UNSURE, do NOT use bullet points; just the UNSURE line and optional suggestion.
 
 FAQ:
 ${faqContent}
@@ -81,7 +85,7 @@ export default async function (req, res) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'models/gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'models/gemini-2.0-flash-exp' });
     const SYSTEM_PROMPT = await buildSystemPrompt();
     const fullPrompt = `${SYSTEM_PROMPT}\nUser question: ${question}\nRespond with the answer only, following the style rules.`;
     const result = await model.generateContent(fullPrompt);
@@ -90,7 +94,7 @@ export default async function (req, res) {
     // Robust UNSURE detection: ignore leading whitespace and case
     const firstNonEmptyLine = answer.split(/\n+/).find(l => l.trim().length) || '';
     const isUnsure = /^UNSURE:/i.test(firstNonEmptyLine.trim());
-    const UNSURE_TEMPLATE = `UNSURE: This topic isn’t currently included in the FAQ, but I’ve logged your question so our team can address it.\nIf you need immediate assistance, please reach out to a staff member directly.`;
+    const UNSURE_TEMPLATE = `UNSURE: This topic isn't currently included in the FAQ, but I've logged your question so our team can address it.\nIf you need immediate assistance, please reach out to a staff member directly.`;
     if (isUnsure) {
       // Enforce exact template regardless of model variation
       answer = UNSURE_TEMPLATE;
