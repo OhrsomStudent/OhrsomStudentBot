@@ -85,10 +85,26 @@ export default async function (req, res) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'models/gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ 
+      model: 'models/gemini-2.5-flash',
+      generationConfig: {
+        maxOutputTokens: 300,
+        temperature: 0.3,
+      }
+    });
     const SYSTEM_PROMPT = await buildSystemPrompt();
     const fullPrompt = `${SYSTEM_PROMPT}\nUser question: ${question}\nRespond with the answer only, following the style rules.`;
-    const result = await model.generateContent(fullPrompt);
+    
+    // Add timeout wrapper (8 seconds to avoid Vercel's 10s limit)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Response timeout')), 8000)
+    );
+    
+    const result = await Promise.race([
+      model.generateContent(fullPrompt),
+      timeoutPromise
+    ]);
+    
     let answer = result.response.text();
     const timestamp = new Date().toISOString();
     // Robust UNSURE detection: ignore leading whitespace and case
@@ -123,6 +139,14 @@ export default async function (req, res) {
     return res.status(200).json({ answer });
   } catch (err) {
     console.error('Gemini API error:', err);
+    
+    // Handle timeout with helpful message
+    if (err.message === 'Response timeout') {
+      return res.status(200).json({ 
+        answer: "The response is taking longer than expected. Please try rephrasing your question or ask something more specific from the FAQ." 
+      });
+    }
+    
     return res.status(500).json({ error: err.message || 'Failed to get answer' });
   }
 }
