@@ -327,9 +327,13 @@ body {
 
 /* ----- RESPONSIVE ----- */
 @media (max-width: 768px) {
+  body {
+    padding: 0.5rem;
+  }
+
   .app {
-    padding: 1.5rem 1rem;
-    gap: 1.25rem;
+    padding: 1rem 0.75rem;
+    gap: 1rem;
   }
 
   .header-logo {
@@ -342,31 +346,58 @@ body {
 
   .chat-container {
     min-height: 350px;
-    max-height: 500px;
+    max-height: 450px;
+    padding: 1rem;
   }
 
   .bubble {
     max-width: 85%;
+    font-size: 0.9rem;
+    padding: 0.85rem 1rem;
   }
 
   .composer {
     flex-direction: column;
+    padding: 0.75rem;
+  }
+
+  .composer textarea {
+    font-size: 0.9rem;
   }
 
   .composer button {
     width: 100%;
+    padding: 0.75rem 1.5rem;
   }
 }
 
 @media (max-width: 480px) {
+  body {
+    padding: 0.25rem;
+  }
+
+  .app {
+    padding: 0.75rem 0.5rem;
+    gap: 0.75rem;
+  }
+
+  .logo-section {
+    margin-bottom: 0.25rem;
+  }
+
   .header-logo {
-    max-width: 150px;
+    max-width: 140px;
   }
 
   .app-header {
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.5rem;
     text-align: center;
+    padding: 0.75rem 1rem;
+  }
+
+  .brand-title {
+    font-size: 1rem;
   }
 
   .header-actions {
@@ -375,7 +406,43 @@ body {
     justify-content: center;
   }
 
+  .chat-container {
+    min-height: 300px;
+    max-height: 400px;
+    padding: 0.75rem;
+  }
+
+  .bubble {
+    max-width: 90%;
+    font-size: 0.85rem;
+    padding: 0.75rem 0.9rem;
+  }
+
   .quick-prompts {
     justify-content: center;
+    gap: 0.4rem;
+  }
+
+  .quick-prompts button {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.7rem;
+  }
+
+  .composer {
+    padding: 0.6rem;
+  }
+
+  .composer textarea {
+    font-size: 0.85rem;
+    padding: 0.6rem 0.8rem;
+  }
+
+  .composer button {
+    padding: 0.7rem 1.25rem;
+    font-size: 0.9rem;
+  }
+
+  .footer {
+    font-size: 0.7rem;
   }
 }
