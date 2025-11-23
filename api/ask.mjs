@@ -85,7 +85,7 @@ export default async function (req, res) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'models/gemini-1.5-flash-latest' });
     const SYSTEM_PROMPT = await buildSystemPrompt();
     const fullPrompt = `${SYSTEM_PROMPT}\nUser question: ${question}\nRespond with the answer only, following the style rules.`;
     const result = await model.generateContent(fullPrompt);
