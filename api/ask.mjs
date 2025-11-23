@@ -90,27 +90,42 @@ export default async function (req, res) {
   function extractAnswer(r) {
     if (!r) return '';
     try {
-      const direct = r.response?.text?.();
-      if (direct && direct.trim()) return direct.trim();
+      // Try direct text() method call
+      if (typeof r.response?.text === 'function') {
+        const direct = r.response.text();
+        if (direct && typeof direct === 'string' && direct.trim()) {
+          return direct.trim();
+        }
+      }
+      
+      // Fallback to candidates array
       const candidates = r.response?.candidates || r.candidates;
-      if (Array.isArray(candidates) && candidates.length) {
-        const parts = candidates[0].content?.parts;
-        if (Array.isArray(parts) && parts.length) {
-          const joined = parts.map(p => p.text || '').join('\n').trim();
-          if (joined) return joined;
+      if (Array.isArray(candidates) && candidates.length > 0) {
+        const content = candidates[0].content;
+        if (content?.parts && Array.isArray(content.parts)) {
+          const text = content.parts
+            .filter(p => p.text)
+            .map(p => p.text)
+            .join('\n')
+            .trim();
+          if (text) return text;
         }
       }
     } catch (e) {
-      console.error('extractAnswer error:', e);
+      console.error('extractAnswer error:', e.message);
     }
     return '';
   }
   
   // Retry helper with exponential backoff
   async function generateWithRetry(model, prompt, maxRetries = 2) {
+    let lastError = null;
+    
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const timeoutMs = 8000 - (attempt * 1000); // Reduce timeout on retries
+        console.log(`Attempt ${attempt + 1}/${maxRetries + 1}`);
+        
+        const timeoutMs = 9000 - (attempt * 1000); // More generous timeout
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Response timeout')), timeoutMs)
         );
@@ -121,17 +136,32 @@ export default async function (req, res) {
         ]);
         
         const answer = extractAnswer(result);
-        if (answer) return answer;
+        if (answer && answer.length > 0) {
+          console.log(`Success on attempt ${attempt + 1}`);
+          return answer;
+        }
         
-        console.log(`Attempt ${attempt + 1}: Empty answer, retrying...`);
-        if (attempt < maxRetries) await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+        console.log(`Attempt ${attempt + 1}: Empty answer extracted`);
+        lastError = new Error('Empty response from AI model');
+        
+        if (attempt < maxRetries) {
+          const waitMs = 500 * (attempt + 1);
+          console.log(`Waiting ${waitMs}ms before retry...`);
+          await new Promise(r => setTimeout(r, waitMs));
+        }
       } catch (e) {
         console.error(`Attempt ${attempt + 1} failed:`, e.message);
-        if (attempt === maxRetries) throw e;
-        if (attempt < maxRetries) await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+        lastError = e;
+        
+        if (attempt < maxRetries) {
+          const waitMs = 500 * (attempt + 1);
+          console.log(`Waiting ${waitMs}ms before retry...`);
+          await new Promise(r => setTimeout(r, waitMs));
+        }
       }
     }
-    throw new Error('All retry attempts failed');
+    
+    throw lastError || new Error('All retry attempts failed');
   }
   
   try {
@@ -204,6 +234,16 @@ export default async function (req, res) {
       });
     }
     
-    return res.status(500).json({ error: err.message || 'Failed to get answer' });
+    // Handle all retry failures
+    if (err.message === 'All retry attempts failed') {
+      return res.status(200).json({ 
+        answer: "I'm having trouble connecting to the AI service right now. Please try again in a moment, or contact staff directly for immediate assistance." 
+      });
+    }
+    
+    // Generic fallback
+    return res.status(200).json({ 
+      answer: "Something went wrong processing your question. Please try again or contact staff for help." 
+    });
   }
 }
