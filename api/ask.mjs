@@ -85,9 +85,16 @@ export default async function (req, res) {
     const SYSTEM_PROMPT = await buildSystemPrompt();
     const fullPrompt = `${SYSTEM_PROMPT}\nUser question: ${question}\nRespond with the answer only, following the style rules.`;
     const result = await model.generateContent(fullPrompt);
-    const answer = result.response.text();
+    let answer = result.response.text();
     const timestamp = new Date().toISOString();
-    const isUnsure = /^UNSURE:/i.test(answer.trim());
+    // Robust UNSURE detection: ignore leading whitespace and case
+    const firstNonEmptyLine = answer.split(/\n+/).find(l => l.trim().length) || '';
+    const isUnsure = /^UNSURE:/i.test(firstNonEmptyLine.trim());
+    const UNSURE_TEMPLATE = `UNSURE: This topic isn’t currently included in the FAQ, but I’ve logged your question so our team can address it.\nIf you need immediate assistance, please reach out to a staff member directly.`;
+    if (isUnsure) {
+      // Enforce exact template regardless of model variation
+      answer = UNSURE_TEMPLATE;
+    }
 
     // Fire-and-forget logging for unanswered / unsure responses
     if (isUnsure && LOG_WEBHOOK_URL) {
