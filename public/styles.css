@@ -68,19 +68,28 @@ body {
 .app-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
   padding: 1rem 1.5rem;
   box-shadow: var(--shadow-soft);
+  text-align: center;
 }
 
 .brand-title {
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: 600;
   letter-spacing: 0.5px;
   color: var(--text-white);
+  margin-bottom: 0.25rem;
+}
+
+.brand-subtitle {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--text-dim);
+  letter-spacing: 0.3px;
 }
 
 .header-actions button {
