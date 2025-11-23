@@ -86,84 +86,6 @@ export default async function (req, res) {
 
   const startTime = Date.now();
   
-  // Robust answer extraction helper
-  function extractAnswer(r) {
-    if (!r) return '';
-    try {
-      // Try direct text() method call
-      if (typeof r.response?.text === 'function') {
-        const direct = r.response.text();
-        if (direct && typeof direct === 'string' && direct.trim()) {
-          return direct.trim();
-        }
-      }
-      
-      // Fallback to candidates array
-      const candidates = r.response?.candidates || r.candidates;
-      if (Array.isArray(candidates) && candidates.length > 0) {
-        const content = candidates[0].content;
-        if (content?.parts && Array.isArray(content.parts)) {
-          const text = content.parts
-            .filter(p => p.text)
-            .map(p => p.text)
-            .join('\n')
-            .trim();
-          if (text) return text;
-        }
-      }
-    } catch (e) {
-      console.error('extractAnswer error:', e.message);
-    }
-    return '';
-  }
-  
-  // Retry helper with exponential backoff
-  async function generateWithRetry(model, prompt, maxRetries = 2) {
-    let lastError = null;
-    
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`Attempt ${attempt + 1}/${maxRetries + 1}`);
-        
-        const timeoutMs = 9000 - (attempt * 1000); // More generous timeout
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Response timeout')), timeoutMs)
-        );
-        
-        const result = await Promise.race([
-          model.generateContent(prompt),
-          timeoutPromise
-        ]);
-        
-        const answer = extractAnswer(result);
-        if (answer && answer.length > 0) {
-          console.log(`Success on attempt ${attempt + 1}`);
-          return answer;
-        }
-        
-        console.log(`Attempt ${attempt + 1}: Empty answer extracted`);
-        lastError = new Error('Empty response from AI model');
-        
-        if (attempt < maxRetries) {
-          const waitMs = 500 * (attempt + 1);
-          console.log(`Waiting ${waitMs}ms before retry...`);
-          await new Promise(r => setTimeout(r, waitMs));
-        }
-      } catch (e) {
-        console.error(`Attempt ${attempt + 1} failed:`, e.message);
-        lastError = e;
-        
-        if (attempt < maxRetries) {
-          const waitMs = 500 * (attempt + 1);
-          console.log(`Waiting ${waitMs}ms before retry...`);
-          await new Promise(r => setTimeout(r, waitMs));
-        }
-      }
-    }
-    
-    throw lastError || new Error('All retry attempts failed');
-  }
-  
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ 
@@ -176,8 +98,18 @@ export default async function (req, res) {
     const SYSTEM_PROMPT = await buildSystemPrompt();
     const fullPrompt = `${SYSTEM_PROMPT}\nUser question: ${question}\nRespond with the answer only, following the style rules.`;
     
-    let answer = await generateWithRetry(model, fullPrompt);
-    console.log('Answer after extraction length:', answer.length);
+    // Simple timeout to prevent Vercel timeout
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Response timeout')), 9000)
+    );
+    
+    const result = await Promise.race([
+      model.generateContent(fullPrompt),
+      timeoutPromise
+    ]);
+    
+    let answer = result.response.text();
+    console.log('Answer length:', answer.length);
     
     const timestamp = new Date().toISOString();
     // Robust UNSURE detection: ignore leading whitespace and case
