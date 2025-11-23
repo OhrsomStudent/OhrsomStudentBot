@@ -100,15 +100,22 @@ export default async function (req, res) {
       answer = UNSURE_TEMPLATE;
     }
 
-    // Fire-and-forget logging for unanswered / unsure responses
-    if (isUnsure && LOG_WEBHOOK_URL) {
+    // Fire-and-forget logging:
+    // - Always log UNSURE responses.
+    // - If LOG_ALL_QUESTIONS=1 (env), also log every question to aid debugging.
+    const shouldLog = LOG_WEBHOOK_URL && (isUnsure || process.env.LOG_ALL_QUESTIONS === '1');
+    if (shouldLog) {
       const payload = {
         question,
         answer,
         timestamp,
-        commit: process.env.VERCEL_GIT_COMMIT_SHA || null
+        commit: process.env.VERCEL_GIT_COMMIT_SHA || null,
+        unsure: isUnsure
       };
-      console.log('Logging UNSURE question:', payload.question.substring(0, 50));
+      console.log(
+        (isUnsure ? 'Logging UNSURE question:' : 'Logging question (debug mode):'),
+        payload.question.substring(0, 50)
+      );
       try {
         fetch(LOG_WEBHOOK_URL, {
           method: 'POST',
