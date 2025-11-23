@@ -100,11 +100,13 @@ export default async function (req, res) {
       answer = UNSURE_TEMPLATE;
     }
 
-    // Fire-and-forget logging:
+    // Reliable logging:
     // - Always log UNSURE responses.
-    // - If LOG_ALL_QUESTIONS=1 (env), also log every question to aid debugging.
+    // - If LOG_ALL_QUESTIONS=1, also log every question.
+    // - Retries up to 3 times with incremental backoff if enabled.
     const shouldLog = LOG_WEBHOOK_URL && (isUnsure || process.env.LOG_ALL_QUESTIONS === '1');
-    if (shouldLog) {
+    async function logPayload() {
+      if (!shouldLog) return;
       const payload = {
         question,
         answer,
@@ -112,18 +114,40 @@ export default async function (req, res) {
         commit: process.env.VERCEL_GIT_COMMIT_SHA || null,
         unsure: isUnsure
       };
+      const debug = process.env.LOG_LOGGING_DEBUG === '1';
+      const waitForLogging = process.env.LOG_WAIT === '1';
+      const maxAttempts = 3;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const resp = await fetch(LOG_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!resp.ok) throw new Error('Non-200 status: ' + resp.status);
+          if (debug) console.log('[LOG OK]', { attempt, unsure: isUnsure });
+          break;
+        } catch (err) {
+          console.error(`[LOG FAIL attempt ${attempt}]`, err.message);
+          if (attempt < maxAttempts) {
+            // Backoff 150ms * attempt
+            await new Promise(r => setTimeout(r, 150 * attempt));
+          } else if (debug) {
+            console.error('[LOG GAVE UP] after', attempt, 'attempts');
+          }
+        }
+      }
+    }
+    // Either await or fire-and-forget based on env flag
+    if (shouldLog) {
       console.log(
         (isUnsure ? 'Logging UNSURE question:' : 'Logging question (debug mode):'),
-        payload.question.substring(0, 50)
+        question.substring(0, 60)
       );
-      try {
-        fetch(LOG_WEBHOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).catch(err => console.error('Async logging fetch failed:', err));
-      } catch (e) {
-        console.error('Failed to initiate logging:', e);
+      if (process.env.LOG_WAIT === '1') {
+        await logPayload();
+      } else {
+        logPayload(); // no await
       }
     }
     
