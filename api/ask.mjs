@@ -1,4 +1,4 @@
-// FAQ cache (in-memory, 10 min TTL)
+﻿// FAQ cache (in-memory, 10 min TTL)
 let cachedFAQ = null;
 let cacheTime = 0;
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
@@ -28,7 +28,11 @@ async function getFAQ() {
 
 async function buildSystemPrompt() {
   const faqContent = await getFAQ();
-  return `You are the Ohrsom Gap Year FAQ assistant. Answer ONLY using the information in the FAQ below. If the FAQ does not contain the answer with sufficient certainty, respond with EXACTLY the following two lines (no changes, no extra punctuation, no additional sentences):
+  return `You are the Ohrsom Gap Year FAQ assistant. Answer using the information in the FAQ below.
+
+If the FAQ contains ANY information about the topic asked, provide that answer - even if incomplete. Only use UNSURE if the topic is completely absent from the FAQ.
+
+If you must use UNSURE, respond with EXACTLY these two lines:
 
 UNSURE: This topic isn’t currently included in the FAQ, but I’ve logged your question so our team can address it.
 If you need immediate assistance, please reach out to a staff member directly.
