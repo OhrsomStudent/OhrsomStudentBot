@@ -28,7 +28,12 @@ async function getFAQ() {
 
 async function buildSystemPrompt() {
   const faqContent = await getFAQ();
-  return `You are the Ohrsom Gap Year FAQ assistant. Answer ONLY using the information in the FAQ below. If the FAQ does not contain the answer with sufficient certainty, respond starting with EXACTLY the token 'UNSURE:' followed by one short sentence explaining the FAQ lacks that detail, then optionally a brief safe suggestion (e.g. contact programme support). Do not invent details.
+  return `You are the Ohrsom Gap Year FAQ assistant. Answer ONLY using the information in the FAQ below. If the FAQ does not contain the answer with sufficient certainty, respond with EXACTLY the following two lines (no changes, no extra punctuation, no additional sentences):
+
+UNSURE: This topic isn’t currently included in the FAQ, but I’ve logged your question so our team can address it.
+If you need immediate assistance, please reach out to a staff member directly.
+
+Do not invent details.
 
 STYLE:
 - Respond directly with the answer only.
@@ -92,6 +97,7 @@ export default async function (req, res) {
         timestamp,
         commit: process.env.VERCEL_GIT_COMMIT_SHA || null
       };
+      console.log('Logging UNSURE question:', payload.question.substring(0, 50));
       try {
         fetch(LOG_WEBHOOK_URL, {
           method: 'POST',
