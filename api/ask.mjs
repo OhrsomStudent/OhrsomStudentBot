@@ -28,11 +28,7 @@ async function getFAQ() {
 
 async function buildSystemPrompt() {
   const faqContent = await getFAQ();
-  return `You are the Ohrsom Gap Year FAQ assistant. Answer using the information in the FAQ below.
-
-If the FAQ contains ANY information about the topic asked, provide that answer - even if incomplete. Only use UNSURE if the topic is completely absent from the FAQ.
-
-If you must use UNSURE, respond with EXACTLY these two lines:
+  return `You are the Ohrsom Gap Year FAQ assistant. Answer ONLY using the information in the FAQ below. If the FAQ does not contain the answer with sufficient certainty, respond with EXACTLY the following two lines (no changes, no extra punctuation, no additional sentences):
 
 UNSURE: This topic isn’t currently included in the FAQ, but I’ve logged your question so our team can address it.
 If you need immediate assistance, please reach out to a staff member directly.
@@ -100,54 +96,23 @@ export default async function (req, res) {
       answer = UNSURE_TEMPLATE;
     }
 
-    // Reliable logging:
-    // - Always log UNSURE responses.
-    // - If LOG_ALL_QUESTIONS=1, also log every question.
-    // - Retries up to 3 times with incremental backoff if enabled.
-    const shouldLog = LOG_WEBHOOK_URL && (isUnsure || process.env.LOG_ALL_QUESTIONS === '1');
-    async function logPayload() {
-      if (!shouldLog) return;
+    // Fire-and-forget logging for unanswered / unsure responses (original simple logic)
+    if (isUnsure && LOG_WEBHOOK_URL) {
       const payload = {
         question,
         answer,
         timestamp,
-        commit: process.env.VERCEL_GIT_COMMIT_SHA || null,
-        unsure: isUnsure
+        commit: process.env.VERCEL_GIT_COMMIT_SHA || null
       };
-      const debug = process.env.LOG_LOGGING_DEBUG === '1';
-      const waitForLogging = process.env.LOG_WAIT === '1';
-      const maxAttempts = 3;
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-          const resp = await fetch(LOG_WEBHOOK_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          if (!resp.ok) throw new Error('Non-200 status: ' + resp.status);
-          if (debug) console.log('[LOG OK]', { attempt, unsure: isUnsure });
-          break;
-        } catch (err) {
-          console.error(`[LOG FAIL attempt ${attempt}]`, err.message);
-          if (attempt < maxAttempts) {
-            // Backoff 150ms * attempt
-            await new Promise(r => setTimeout(r, 150 * attempt));
-          } else if (debug) {
-            console.error('[LOG GAVE UP] after', attempt, 'attempts');
-          }
-        }
-      }
-    }
-    // Either await or fire-and-forget based on env flag
-    if (shouldLog) {
-      console.log(
-        (isUnsure ? 'Logging UNSURE question:' : 'Logging question (debug mode):'),
-        question.substring(0, 60)
-      );
-      if (process.env.LOG_WAIT === '1') {
-        await logPayload();
-      } else {
-        logPayload(); // no await
+      console.log('Logging UNSURE question:', payload.question.substring(0, 50));
+      try {
+        fetch(LOG_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(err => console.error('Async logging fetch failed:', err));
+      } catch (e) {
+        console.error('Failed to initiate logging:', e);
       }
     }
     
