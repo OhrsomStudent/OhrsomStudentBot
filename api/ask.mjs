@@ -28,6 +28,7 @@ async function getFAQ() {
 
 async function buildSystemPrompt() {
   const faqContent = await getFAQ();
+  console.log('FAQ Content length:', faqContent.length, 'First 200 chars:', faqContent.substring(0, 200));
   return `You are the Ohrsom Gap Year FAQ assistant. Answer questions using ONLY the information in the FAQ below.
 
 IMPORTANT: Only respond with UNSURE if the question topic is COMPLETELY ABSENT from the FAQ or explicitly contradicts the FAQ. If the FAQ contains ANY relevant information about the topic (even partial details), provide that information. Do not say UNSURE just because you're uncertain - use the available FAQ content.
@@ -105,10 +106,15 @@ export default async function (req, res) {
       timeoutPromise
     ]);
     
+    console.log('Raw API result:', JSON.stringify(result, null, 2));
+    
     let answer = result?.response?.text();
+    
+    console.log('Extracted answer:', answer);
     
     // Validate answer
     if (!answer || typeof answer !== 'string' || answer.trim().length === 0) {
+      console.error('Invalid answer - result:', result);
       throw new Error('Empty response from AI model');
     }
     
