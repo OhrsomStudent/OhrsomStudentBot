@@ -146,7 +146,7 @@ export default async function (req, res) {
     const SYSTEM_PROMPT = await buildSystemPrompt();
     const fullPrompt = `${SYSTEM_PROMPT}\nUser question: ${question}\nRespond with the answer only, following the style rules.`;
     
-    const answer = await generateWithRetry(model, fullPrompt);
+    let answer = await generateWithRetry(model, fullPrompt);
     console.log('Answer after extraction length:', answer.length);
     
     const timestamp = new Date().toISOString();
