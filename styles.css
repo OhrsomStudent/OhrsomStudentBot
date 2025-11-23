@@ -360,6 +360,7 @@ body {
   }
 
   .composer textarea {
+    width: 100%;
     font-size: 0.9rem;
   }
 
@@ -427,6 +428,7 @@ body {
   }
 
   .composer textarea {
+    width: 100%;
     font-size: 0.88rem;
     padding: 0.7rem 0.85rem;
   }
