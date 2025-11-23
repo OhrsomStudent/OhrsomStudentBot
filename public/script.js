@@ -2,10 +2,7 @@ const chatEl = document.getElementById('chat');
 const formEl = document.getElementById('chatForm');
 const inputEl = document.getElementById('message');
 const sendBtn = document.getElementById('sendBtn');
-const themeToggle = document.getElementById('themeToggle');
 const quickPrompts = document.getElementById('quickPrompts');
-
-let dark = true;
 
 function addMessage(text, role='bot') {
   const tpl = document.getElementById('message-template');
@@ -70,12 +67,6 @@ formEl.addEventListener('submit', e => {
 inputEl.addEventListener('input', () => {
   inputEl.style.height = 'auto';
   inputEl.style.height = Math.min(inputEl.scrollHeight, 180) + 'px';
-});
-
-themeToggle.addEventListener('click', () => {
-  dark = !dark;
-  document.documentElement.classList.toggle('dark', !dark);
-  themeToggle.textContent = dark ? '🌙' : '☀️';
 });
 
 quickPrompts.addEventListener('click', e => {
