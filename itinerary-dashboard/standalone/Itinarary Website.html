@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gap Year Itinerary Dashboard</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better aesthetics */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        .tab-button.active {
+            background-color: #10b981; /* Emerald 500 */
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+        }
+        /* Timeline styling */
+        .timeline-item {
+            border-left: 2px solid #d1d5db; /* gray-300 */
+            padding-left: 1.5rem;
+            position: relative;
+        }
+        .timeline-dot {
+            position: absolute;
+            left: -8px;
+            top: 0;
+            width: 16px;
+            height: 16px;
+            background-color: #10b981; /* Emerald 500 */
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 0 2px #10b981;
+        }
+        /* Collapsible section transition */
+        .further-details-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+        }
+        .further-details-content.open {
+            max-height: 500px; /* Arbitrarily large value to allow content */
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+            transition: max-height 0.5s ease-in, padding 0.5s ease-in;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+<!-- Loading Indicator -->
+<div id="loadingIndicator" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
+    <div class="flex flex-col items-center">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-emerald-500"></div>
+        <p class="mt-4 text-emerald-600 font-semibold">Fetching Live Itinerary Data...</p>
+    </div>
+</div>
+
+<!-- Main Content Container -->
+<div class="container">
+    <header class="text-center mb-10 p-6 bg-white shadow-lg rounded-xl flex flex-col md:flex-row justify-between items-center">
+        <div class="md:text-left text-center">
+            <h1 class="text-3xl font-extrabold text-gray-800">Gap Year UK Itinerary</h1>
+            <p class="text-md text-gray-500 mt-1">Interactive Daily Schedule & Logistics</p>
+            <div id="last-updated" class="text-xs text-gray-400 mt-1">Last data sync: N/A</div>
+        </div>
+        <!-- Staff Status and Login/Logout Button -->
+        <div id="staff-status" class="mt-4 md:mt-0">
+            <!-- Content populated by JavaScript -->
+        </div>
+    </header>
+
+    <div id="tabs-container" class="flex flex-wrap justify-center gap-2 mb-8 p-4 bg-white rounded-xl shadow-md">
+        <!-- Day Tabs will be rendered here -->
+    </div>
+
+    <div id="filters-container" class="flex flex-wrap gap-4 mb-6 p-4 bg-white rounded-xl shadow-md">
+        <!-- Filters will be rendered here (now as dropdowns) -->
+    </div>
+
+    <div id="content-container" class="bg-white p-6 rounded-xl shadow-lg">
+        <!-- Timeline content will be rendered here -->
+    </div>
+</div>
+
+<!-- Staff Login Modal -->
+<div id="login-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 z-50 flex items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full transform transition-all">
+        <h3 class="text-2xl font-bold mb-4 text-gray-800">Staff Login</h3>
+        <p class="text-sm text-gray-500 mb-4">Access detailed logistics and contact info.</p>
+        
+        <div class="space-y-4">
+            <div>
+                <label for="login-email" class="block text-sm font-medium text-gray-700">Email</label>
+                <input type="email" id="login-email" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+            </div>
+            <div>
+                <label for="login-password" class="block text-sm font-medium text-gray-700">Password</label>
+                <input type="password" id="login-password" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+            </div>
+            <p id="login-error" class="text-sm text-red-500 h-5"></p>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+            <button onclick="window.showLoginModal(false)" 
+                    class="px-4 py-2 text-sm font-medium rounded-lg text-gray-700 bg-gray-200 hover:bg-gray-300 transition duration-150">
+                Cancel
+            </button>
+            <button onclick="window.handleLogin()" 
+                    class="px-4 py-2 text-sm font-medium rounded-lg text-white bg-emerald-500 hover:bg-emerald-600 transition duration-150">
+                Log In
+            </button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    // --- Firebase imports ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- Data Source Configuration (User Provided Link) ---
+    // Ensure this link is HTTPS and publicly published as CSV from Google Sheets.
+    const LIVE_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRip3XVrk7VVTw8BTxJIFiEfr26jDhhuyMnGBDrB191c3wjVaz3DJ4ra4ZMrvXW0HbNAMl28rxMrqcB/pub?gid=1836297205&single=true&output=csv";
+    
+    // --- Global Variables (Provided by Canvas) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // Inline Firebase config for this standalone page
+        const firebaseConfig = {
+            apiKey: "AIzaSyC3vQV70axn1C7l7t6mnyXVwAZHb6g8IVI",
+            authDomain: "detailed-itinerary.firebaseapp.com",
+            projectId: "detailed-itinerary",
+            storageBucket: "detailed-itinerary.firebasestorage.app",
+            messagingSenderId: "318774224232",
+            appId: "1:318774224232:web:63cdb39515a4b2245fa2dd",
+            measurementId: "G-90V8Y4S6V7"
+        };
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    
+    // --- Firebase Initialization and State ---
+    let app, db, auth;
+    let isStaffMode = false; 
+    
+    if (Object.keys(firebaseConfig).length > 0) {
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch (error) {
+            console.error("Firebase initialization failed:", error);
+        }
+    }
+
+    // --- Core Itinerary Logic ---
+    let itineraryData = [];
+    let currentDay = '';
+    let activeFilters = { staff: 'All', group: 'All' }; 
+    const MANDATORY_STAFF_ASSIGNMENTS = ['All Staff', 'UK Staff'];	
+
+    // Element references
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const tabsContainer = document.getElementById('tabs-container');
+    const contentContainer = document.getElementById('content-container');
+    const filtersContainer = document.getElementById('filters-container');	
+    const lastUpdatedElement = document.getElementById('last-updated');
+    const staffStatusElement = document.getElementById('staff-status');
+    const loginModal = document.getElementById('login-modal');
+
+    // Standardized Headers - these must be present or mapped from the CSV
+    let dateHeader = 'Day/Date';
+    let timeHeader = 'Time';
+    let activityHeader = 'Activity';
+    let locationHeader = 'Location';
+    let detailsHeader = 'Logistics';          // Staff-only logistics
+    let extraDetailsHeader = 'Further Details'; // PUBLIC: Collapsible details for everyone
+    let staffHeader = 'Staff Allocation';
+    let groupHeader = 'Group Applicable';
+
+    const FALLBACK_HEADERS = [
+        dateHeader, timeHeader, activityHeader, locationHeader, detailsHeader, 'Student Notes', staffHeader, groupHeader, extraDetailsHeader
+    ];
+    // --- END Standardized Headers ---
+
+    function showLoading(show) {
+        loadingIndicator.style.display = show ? 'flex' : 'none';
+    }
+
+    // --- Authentication and Mode Management Functions ---
+
+    // Function to update the staff/student UI and reload content
+    function updateUIAndLoadData() {
+        // Determine mode: staff is any signed-in user that is NOT anonymous
+        isStaffMode = auth?.currentUser && !auth.currentUser.isAnonymous;
+
+        staffStatusElement.innerHTML = ''; // Clear status
+
+        if (isStaffMode) {
+            staffStatusElement.innerHTML = `
+                <span class="ml-4 text-sm font-bold text-emerald-600 flex items-center">
+                    <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.001 12.001 0 002.944 12c.045 2.533.729 4.908 1.958 7.031l-.004.004C5.167 20.378 8.44 21.902 12 21.902c3.56 0 6.833-1.524 8.098-3.033l.004-.004c1.229-2.123 1.913-4.498 1.958-7.031a12.001 12.001 0 00-2.434-7.956z"></path></svg>
+                    STAFF MODE
+                </span>
+                <button onclick="window.handleLogout()" 
+                    class="ml-2 px-4 py-2 text-sm font-semibold rounded-full bg-red-100 text-red-700 hover:bg-red-200 transition duration-150">
+                    Logout
+                </button>
+            `;
+        } else {
+            staffStatusElement.innerHTML = `
+                <span class="ml-4 text-sm text-gray-500 font-medium">Mode: Student (Public)</span>
+                <button onclick="window.showLoginModal(true)" 
+                    class="ml-2 px-4 py-2 text-sm font-semibold rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition duration-150">
+                    Staff Login
+                </button>
+            `;
+        }
+        
+        // Load data only if not already loaded, otherwise re-render based on new mode
+        if (itineraryData.length === 0) {
+            loadItineraryData(); 
+        } else {
+            renderContent(currentDay); 
+        }
+    }
+
+
+    // Login/Logout Handlers (Exposed globally)
+    window.showLoginModal = (show) => {
+        if (loginModal) {
+            loginModal.classList.toggle('hidden', !show);
+            if (show) {
+                 document.getElementById('login-email').value = '';
+                 document.getElementById('login-password').value = '';
+                 document.getElementById('login-error').textContent = '';
+            }
+        }
+    };
+    
+    window.handleLogout = async () => {
+        try {
+            await signOut(auth);
+            // onAuthStateChanged will trigger updateUIAndLoadData
+        } catch (error) {
+            console.error("Logout failed:", error);
+        }
+    };
+    
+    window.handleLogin = async () => {
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        const loginError = document.getElementById('login-error');
+        
+        loginError.textContent = '';
+        
+        if (!email || !password) {
+            loginError.textContent = 'Please enter both email and password.';
+            return;
+        }
+
+        try {
+            showLoading(true);
+            const cred = await signInWithEmailAndPassword(auth, email, password);
+            if (cred?.user) {
+                window.showLoginModal(false);
+                updateUIAndLoadData();
+            }
+        } catch (error) {
+            console.error('Login failed:', error);
+            const code = error?.code || '';
+            if (code === 'auth/invalid-email') loginError.textContent = 'Invalid email format.';
+            else if (code === 'auth/user-not-found' || code === 'auth/wrong-password') loginError.textContent = 'Incorrect email or password.';
+            else if (code === 'auth/too-many-requests') loginError.textContent = 'Too many attempts. Try again later.';
+            else loginError.textContent = `Login failed: ${error.message}`;
+        } finally {
+            showLoading(false);
+        }
+    };
+
+
+    // Firebase Authentication Listener
+    if (auth) {
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                (async () => {
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Firebase sign-in failed:", error);
+                        if (!auth.currentUser) {
+                            await signInAnonymously(auth).catch(err => console.error("Final Anonymous sign-in failed:", err));
+                        }
+                    }
+                    updateUIAndLoadData(); 
+                })();
+            } else {
+                updateUIAndLoadData(); 
+            }
+        });
+    }
+
+    // Function to handle the toggle of further details (exposed globally)
+    window.toggleDetails = (activityId) => {
+        const contentElement = document.getElementById(`details-content-${activityId}`);
+        const buttonElement = document.getElementById(`details-button-${activityId}`);
+        if (contentElement && buttonElement) {
+            const isOpen = contentElement.classList.toggle('open');
+            
+            // Update button icon
+            const icon = buttonElement.querySelector('svg');
+            if (icon) {
+                icon.innerHTML = isOpen 
+                    ? '<path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />' // Chevron up
+                    : '<path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />'; // Chevron down
+            }
+        }
+    };
+
+
+    // --- Data Parsing and Rendering Logic ---
+
+    function parseCSV(text) {
+        const lines = text.trim().split('\n');
+        if (lines.length <= 1) return [];
+
+        const initialHeaders = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        let headers = initialHeaders;
+        
+        // Simple header check to ensure we have enough columns
+        if (headers.length < 5) {
+             console.warn("Detected possible short header issue. Using fallback headers for mapping.");
+             headers = FALLBACK_HEADERS;
+        }
+
+        const data = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            // Robust regex to handle quoted fields containing commas
+            const row = line.match(/(".*?"|[^",\r\n]+)(?=\s*,|\s*$)/g) || [];
+            const cleanedRow = row.map(c => c.trim().replace(/^"|"$/g, ''));
+            
+            if (cleanedRow.length > 0) {
+                const item = {};
+                
+                // Map columns based on the determined headers
+                headers.forEach((header, index) => {
+                    if (cleanedRow[index] !== undefined) {
+                        item[header] = cleanedRow[index];
+                    } else {
+                        item[header] = '';
+                    }
+                });
+                data.push(item);
+            }
+        }
+        return data.filter(item => item[dateHeader] && item[dateHeader].trim()); 
+    }
+
+
+    function determineHeaders(data) {
+        // No change in header logic, just ensuring they are defined globally
+        console.log("Mapped Final Headers (Dual Mode):", {
+            dateHeader, timeHeader, activityHeader, locationHeader, detailsHeader, 
+            extraDetailsHeader, staffHeader, groupHeader
+        });
+    }
+
+    function renderTabs(data) {
+        const uniqueDays = [];
+        data.forEach(item => {
+            const day = item[dateHeader] ? item[dateHeader].trim() : '';
+            if (day && !uniqueDays.includes(day)) {
+                uniqueDays.push(day);
+            }
+        });
+
+        tabsContainer.innerHTML = '';
+
+        if (uniqueDays.length === 0) {
+            contentContainer.innerHTML = '<p class="text-center text-gray-500 p-8">No itinerary data found. Please ensure the Day/Date column is filled in your data source.</p>';
+            return;
+        }
+
+        let firstDay = currentDay;
+
+        uniqueDays.forEach((day, index) => {
+            const button = document.createElement('button');
+            button.className = 'tab-button px-4 py-2 text-sm font-medium rounded-full transition duration-150 hover:bg-emerald-100 hover:text-emerald-700 text-gray-700 bg-white shadow-sm';
+            button.textContent = day;
+            button.onclick = () => switchDay(day);
+            tabsContainer.appendChild(button);
+
+            if (index === 0) {
+                firstDay = day;
+            }
+        });
+        
+        if (!currentDay || !uniqueDays.includes(currentDay)) {
+            currentDay = firstDay;
+        }
+        
+        const currentTab = Array.from(tabsContainer.children).find(btn => btn.textContent === currentDay);
+        if (currentTab) {
+            currentTab.classList.add('active');
+        }
+        
+        renderFilters(data); 
+        renderContent(currentDay);
+    }
+
+    function switchDay(day) {
+        currentDay = day;
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.textContent === day) {
+                btn.classList.add('active');
+            }
+        });
+        activeFilters = { staff: 'All', group: 'All' };
+        renderFilters(itineraryData);	
+        renderContent(day);
+    }
+    
+    function filterData(data) {
+        const staffFilterActive = isStaffMode && activeFilters.staff !== 'All';
+
+        return data.filter(item => {
+            if (staffFilterActive) {
+                const requiredStaff = activeFilters.staff;
+                const itemStaffRaw = item[staffHeader] || '';
+                const itemStaffList = itemStaffRaw.split('/').map(s => s.trim());
+
+                const isExplicitlyAssigned = itemStaffList.includes(requiredStaff);
+                const isMandatoryAssignment = MANDATORY_STAFF_ASSIGNMENTS.some(mandatory =>	
+                    itemStaffList.includes(mandatory)
+                );
+                
+                if (!isExplicitlyAssigned && !isMandatoryAssignment) {
+                    return false;
+                }
+            }
+            
+            if (activeFilters.group !== 'All') {
+                const itemGroup = item[groupHeader] || '';
+                // Note: Assuming 'Group Applicable' is a single value or 'All'
+                if (itemGroup.trim() !== 'All' && itemGroup.trim() !== activeFilters.group) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+    }
+    
+    window.handleFilterChange = (event, type) => {
+        const value = event.target.value;
+        activeFilters[type] = value;
+        renderContent(currentDay);	
+    };
+
+    function getUniqueValues(data, header) {
+        if (!header) return [];
+        const values = data.map(item => item[header]).filter(v => v && v.trim());
+        if (header === staffHeader) {
+            const allStaff = values.flatMap(v => v.split('/').map(s => s.trim()));
+            return [...new Set(allStaff)].sort();
+        }
+        return [...new Set(values)].sort();
+    }
+    
+    function createDropdown(type, label, values) {
+        const currentActive = activeFilters[type];
+        
+        let html = `<div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <label for="${type}-filter" class="font-semibold text-gray-700">${label}:</label>
+            <select id="${type}-filter"	
+                    onchange="window.handleFilterChange(event, '${type}')"	
+                    class="p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500 bg-white text-gray-800 w-full sm:w-auto min-w-[150px]">
+                <option value="All" ${currentActive === 'All' ? 'selected' : ''}>-- All ${label} --</option>`;
+        
+        values.forEach(value => {
+            if (value && value.trim()) {
+                html += `<option value="${value}" ${currentActive === value ? 'selected' : ''}>${value}</option>`;
+            }
+        });
+
+        html += `</select></div>`;
+        return html;
+    }
+
+
+    function renderFilters(data) {
+        filtersContainer.innerHTML = '';
+        const dayData = data.filter(item => item[dateHeader] === currentDay);
+
+        const staffValues = getUniqueValues(dayData, staffHeader);
+        const groupValues = getUniqueValues(dayData, groupHeader);
+        
+        let filterHtml = '<div class="flex flex-col md:flex-row w-full gap-4">';
+        
+        if (isStaffMode && staffValues.length > 0) {
+            filterHtml += createDropdown('staff', 'Staff Allocation', staffValues);
+        }
+
+        if (groupValues.length > 0) {
+            filterHtml += createDropdown('group', 'Group Applicable', groupValues);
+        }
+
+        filterHtml += '</div>';
+        filtersContainer.innerHTML = filterHtml;
+    }
+
+
+    function renderContent(day) {
+        let dayData = itineraryData.filter(item => item[dateHeader] === day);
+        const filteredData = filterData(dayData);
+        
+        const showStaffLogistics = isStaffMode; // Only staff see Logistics (detailsHeader)
+
+        if (filteredData.length === 0) {
+            contentContainer.innerHTML = `<p class="text-center text-gray-500 font-semibold p-8">No activities scheduled for "${day}" matching the current filters.</p>`;
+            return;
+        }
+
+        let timelineHtml = `
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">${day} Schedule (${showStaffLogistics ? 'Staff View' : 'Student View'})</h2>
+            <div class="space-y-8 p-4 border-l border-gray-200">
+        `;
+        
+        filteredData.forEach((item, index) => {
+            if (!item[activityHeader] || item[activityHeader].trim() === '') return;
+
+            const time = item[timeHeader] || 'Time TBD';
+            const activity = item[activityHeader] || 'Unknown Activity';
+            const location = item[locationHeader];
+            
+            // Staff-only Logistics (Primary Details)
+            const staffLogisticsRaw = detailsHeader ? item[detailsHeader] : ''; 
+            const staffLogistics = (staffLogisticsRaw || '').trim();
+            
+            // Further Details (PUBLIC, collapsible) - Visible in ALL modes
+            const extraDetailsRaw = extraDetailsHeader ? item[extraDetailsHeader] : '';
+            const extraDetails = (extraDetailsRaw || '').trim(); 
+
+            const staff = staffHeader ? item[staffHeader] : '';
+            const group = groupHeader ? item[groupHeader] : '';
+            
+            const activityId = `${day.replace(/[^a-zA-Z0-9]/g, '')}-${index}`;
+
+            // --- REFINED BUTTON LOGIC ---
+            const hasExtraDetailsContent = extraDetails.length > 0;
+            const buttonText = "Further Details";
+            
+            // Use EMERALD (green) for active content, and GREY for disabled/no content
+            const activeColorClasses = 'bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 focus:ring-emerald-500 text-white';
+            const disabledColorClasses = 'bg-gray-200 text-gray-500 cursor-not-allowed';
+
+            const buttonClasses = hasExtraDetailsContent 
+                ? activeColorClasses 
+                : disabledColorClasses;
+            // --- END REFINED BUTTON LOGIC ---
+
+
+            timelineHtml += `
+                <div class="timeline-item relative group pb-8 last:pb-0">
+                    <div class="timeline-dot"></div>
+                    
+                    <div class="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-md transition duration-300 group-hover:shadow-lg">
+                        <div class="flex flex-col sm:flex-row sm:items-start justify-between">
+                            <!-- Time -->
+                            <div class="text-lg font-mono text-emerald-600 sm:w-1/4 mb-2 sm:mb-0">
+                                ${time}
+                            </div>
+                            
+                            <!-- Activity Content -->
+                            <div class="sm:w-3/4">
+                                <h3 class="text-xl font-semibold text-gray-900 mb-1">${activity}</h3>
+                                
+                                <!-- Location/Category -->
+                                ${location ? `
+                                    <p class="text-sm text-gray-500 mb-2 flex items-center">
+                                        <svg class="w-4 h-4 mr-1 text-red-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path></svg>
+                                        ${location}
+                                    </p>
+                                ` : ''}
+
+                                <!-- Staff and Group Tags -->
+                                <div class="flex flex-wrap gap-2 mt-2">
+                                    ${staff && showStaffLogistics ? `<span class="px-3 py-1 text-xs font-semibold text-sky-700 bg-sky-100 rounded-full">Staff: ${staff}</span>` : ''}
+                                    ${group ? `<span class="px-3 py-1 text-xs font-semibold text-purple-700 bg-purple-100 rounded-full">Group: ${group}</span>` : ''}
+                                </div>
+                                
+                                <!-- Staff Logistics (Primary Details) - STAFF ONLY -->
+                                ${staffLogistics && showStaffLogistics ? `
+                                    <p class="text-base text-gray-700 mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                        <span class="font-medium text-gray-600">Staff Logistics:</span> ${staffLogistics.replace(/\n/g, '<br>')}
+                                    </p>
+                                ` : ''}
+                                
+                                <!-- Further Details Button (Interactive) - PUBLIC (Visible to ALL) -->
+                                ${hasExtraDetailsContent ? ` 
+                                    <button id="details-button-${activityId}"
+                                        onclick="window.toggleDetails('${activityId}')"
+                                        class="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full shadow-sm transition duration-150 ease-in-out ${activeColorClasses} focus:outline-none focus:ring-2 focus:ring-offset-2">
+                                        ${buttonText}
+                                        <svg class="w-4 h-4 ml-2 -mr-1" id="icon-${activityId}" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </button>
+                                ` : `
+                                     <button disabled class="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full ${disabledColorClasses}">
+                                        ${buttonText}
+                                    </button>
+                                `}
+
+                                <!-- Further Details Content (Collapsible) - PUBLIC (Visible to ALL) -->
+                                <div id="details-content-${activityId}" class="further-details-content">
+                                    <div class="text-sm text-gray-600 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <span class="font-bold text-blue-700 block mb-1">Further Details:</span> 
+                                        ${extraDetails.replace(/\n/g, '<br>')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        timelineHtml += `
+            </div>
+        `;
+        
+        contentContainer.innerHTML = timelineHtml;
+        renderFilters(itineraryData);
+    }
+
+    async function fetchDataWithRetry(url, maxRetries = 5, delay = 1000) {
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const text = await response.text();
+                if (!text || text.trim().length === 0) {
+                    throw new Error("Received empty data from the sheet. Check if the sheet is published and has content.");
+                }
+                console.log(`Data fetch successful on attempt ${i + 1}.`);
+                return text;
+            } catch (error) {
+                // Log the failure to the console for easier debugging
+                console.error(`Attempt ${i + 1} failed (URL: ${url}): ${error.message}. Retrying in ${delay / 1000}s...`);
+                if (i === maxRetries - 1) throw error; 
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2; // Exponential backoff
+            }
+        }
+    }
+
+
+    async function loadItineraryData() {
+        showLoading(true);
+        
+        try {
+            const csvText = await fetchDataWithRetry(LIVE_CSV_URL);
+            itineraryData = parseCSV(csvText);
+            
+            if (itineraryData.length === 0) {
+                 throw new Error("The processed data is empty. Ensure the sheet has content and the 'Day/Date' column is filled.");
+            }
+
+            // Remove any old error messages
+            const errorBanner = document.getElementById('data-error-banner');
+            if (errorBanner) errorBanner.remove();
+
+            lastUpdatedElement.textContent = `Last data sync: ${new Date().toLocaleTimeString()} (LIVE)`;
+        } catch (error) {
+            console.error('Critical Data Loading Failed:', error);
+            
+            // Display a clear error message on the page
+            contentContainer.innerHTML = `
+                <div id="data-error-banner" class="text-center p-8 bg-red-100 border border-red-400 text-red-700 rounded-xl shadow-inner mt-8">
+                    <p class="font-bold text-xl mb-2">CRITICAL DATA ERROR</p>
+                    <p>Failed to fetch or process live itinerary data.</p>
+                    <p class="mt-2 text-sm italic">
+                        **Action Required:** Please check your browser's **Developer Console** (F12) for network errors. 
+                        The most common cause is the sheet being unpublished or a cross-origin error (CORS).
+                    </p>
+                    <p class="mt-1 text-xs">Error: ${error.message}</p>
+                </div>
+            `;
+            lastUpdatedElement.textContent = `Last data sync: FAILED`;
+            itineraryData = []; // Clear any potentially stale or partial data
+            return;
+        } finally {
+            determineHeaders(itineraryData);
+            renderTabs(itineraryData);
+            showLoading(false);
+        }
+    }
+
+    // Initial setup starts via the onAuthStateChanged listener above.
+</script>
+
+</body>
+</html>

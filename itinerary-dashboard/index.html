@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gap Year Itinerary Dashboard</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better aesthetics */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        .tab-button.active {
+            background-color: #10b981; /* Emerald 500 */
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+        }
+        /* Timeline styling */
+        .timeline-item {
+            border-left: 2px solid #d1d5db; /* gray-300 */
+            padding-left: 1.5rem;
+            position: relative;
+        }
+        .timeline-dot {
+            position: absolute;
+            left: -8px;
+            top: 0;
+            width: 16px;
+            height: 16px;
+            background-color: #10b981; /* Emerald 500 */
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 0 2px #10b981;
+        }
+        /* Collapsible section transition */
+        .further-details-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+        }
+        .further-details-content.open {
+            max-height: 500px; /* Arbitrarily large value to allow content */
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+            transition: max-height 0.5s ease-in, padding 0.5s ease-in;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+<!-- Loading Indicator -->
+<div id="loadingIndicator" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
+    <div class="flex flex-col items-center">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-emerald-500"></div>
+        <p class="mt-4 text-emerald-600 font-semibold">Fetching Live Itinerary Data...</p>
+    </div>
+</div>
+
+<!-- Main Content Container -->
+<div class="container">
+    <header class="text-center mb-10 p-6 bg-white shadow-lg rounded-xl flex flex-col md:flex-row justify-between items-center">
+        <div class="md:text-left text-center">
+            <h1 class="text-3xl font-extrabold text-gray-800">Gap Year UK Itinerary</h1>
+            <p class="text-md text-gray-500 mt-1">Interactive Daily Schedule & Logistics</p>
+            <div id="last-updated" class="text-xs text-gray-400 mt-1">Last data sync: N/A</div>
+        </div>
+        <!-- Staff Status and Login/Logout Button -->
+        <div id="staff-status" class="mt-4 md:mt-0">
+            <!-- Content populated by JavaScript -->
+        </div>
+    </header>
+
+    <div id="tabs-container" class="flex flex-wrap justify-center gap-2 mb-8 p-4 bg-white rounded-xl shadow-md">
+        <!-- Day Tabs will be rendered here -->
+    </div>
+
+    <div id="filters-container" class="flex flex-wrap gap-4 mb-6 p-4 bg-white rounded-xl shadow-md">
+        <!-- Filters will be rendered here (now as dropdowns) -->
+    </div>
+
+    <div id="content-container" class="bg-white p-6 rounded-xl shadow-lg">
+        <!-- Timeline content will be rendered here -->
+    </div>
+</div>
+
+<!-- Staff Login Modal -->
+<div id="login-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 z-50 flex items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full transform transition-all">
+        <h3 class="text-2xl font-bold mb-4 text-gray-800">Staff Login</h3>
+        <p class="text-sm text-gray-500 mb-4">Access detailed logistics and contact info.</p>
+        
+        <!-- Mock Credentials Hint -->
+        <div class="p-3 mb-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+            <span class="font-semibold">Mock Login:</span> 
+            <ul class="list-disc list-inside">
+                <li>Email: staff@example.com</li>
+                <li>Password: password</li>
+            </ul>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <label for="login-email" class="block text-sm font-medium text-gray-700">Email</label>
+                <input type="email" id="login-email" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+            </div>
+            <div>
+                <label for="login-password" class="block text-sm font-medium text-gray-700">Password</label>
+                <input type="password" id="login-password" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+            </div>
+            <p id="login-error" class="text-sm text-red-500 h-5"></p>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+            <button onclick="window.showLoginModal(false)" 
+                    class="px-4 py-2 text-sm font-medium rounded-lg text-gray-700 bg-gray-200 hover:bg-gray-300 transition duration-150">
+                Cancel
+            </button>
+            <button onclick="window.handleLogin()" 
+                    class="px-4 py-2 text-sm font-medium rounded-lg text-white bg-emerald-500 hover:bg-emerald-600 transition duration-150">
+                Log In
+            </button>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
