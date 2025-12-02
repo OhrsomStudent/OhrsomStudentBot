@@ -68,7 +68,7 @@
 <div class="container">
     <header class="text-center mb-10 p-6 bg-white shadow-lg rounded-xl flex flex-col md:flex-row justify-between items-center">
         <div class="md:text-left text-center">
-            <h1 class="text-3xl font-extrabold text-gray-800">Gap Year UK Itinerary</h1>
+            <h1 id="dynamic-header" class="text-3xl font-extrabold text-gray-800">Itinerary</h1>
             <p class="text-md text-gray-500 mt-1">Interactive Daily Schedule & Logistics</p>
             <div id="last-updated" class="text-xs text-gray-400 mt-1">Last data sync: N/A</div>
         </div>
@@ -257,9 +257,9 @@
         const email = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
         const loginError = document.getElementById('login-error');
-        
+
         loginError.textContent = '';
-        
+
         if (!email || !password) {
             loginError.textContent = 'Please enter both email and password.';
             return;
@@ -390,6 +390,14 @@
 
         tabsContainer.innerHTML = '';
 
+        // Set header dynamically from first tab name
+        const headerElement = document.getElementById('dynamic-header');
+        if (uniqueDays.length > 0 && headerElement) {
+            headerElement.textContent = uniqueDays[0] + ' Itinerary';
+        } else if (headerElement) {
+            headerElement.textContent = 'Itinerary';
+        }
+
         if (uniqueDays.length === 0) {
             contentContainer.innerHTML = '<p class="text-center text-gray-500 p-8">No itinerary data found. Please ensure the Day/Date column is filled in your data source.</p>';
             return;
@@ -408,16 +416,16 @@
                 firstDay = day;
             }
         });
-        
+    
         if (!currentDay || !uniqueDays.includes(currentDay)) {
             currentDay = firstDay;
         }
-        
+    
         const currentTab = Array.from(tabsContainer.children).find(btn => btn.textContent === currentDay);
         if (currentTab) {
             currentTab.classList.add('active');
         }
-        
+    
         renderFilters(data); 
         renderContent(currentDay);
     }
@@ -442,21 +450,26 @@
             if (staffFilterActive) {
                 const requiredStaff = activeFilters.staff;
                 const itemStaffRaw = item[staffHeader] || '';
-                const itemStaffList = itemStaffRaw.split('/').map(s => s.trim());
+                // Split by comma and slash, trim
+                const itemStaffList = [];
+                itemStaffRaw.split(',').forEach(part => {
+                    part.split('/').forEach(name => {
+                        itemStaffList.push(name.trim());
+                    });
+                });
 
+                // Show if requiredStaff is present, or 'All Staff' is present
                 const isExplicitlyAssigned = itemStaffList.includes(requiredStaff);
-                const isMandatoryAssignment = MANDATORY_STAFF_ASSIGNMENTS.some(mandatory =>	
-                    itemStaffList.includes(mandatory)
-                );
-                
-                if (!isExplicitlyAssigned && !isMandatoryAssignment) {
+                const isAllStaff = itemStaffList.includes('All Staff');
+                const isMandatoryAssignment = MANDATORY_STAFF_ASSIGNMENTS.some(mandatory => itemStaffList.includes(mandatory));
+
+                if (!isExplicitlyAssigned && !isAllStaff && !isMandatoryAssignment) {
                     return false;
                 }
             }
-            
+
             if (activeFilters.group !== 'All') {
                 const itemGroup = item[groupHeader] || '';
-                // Note: Assuming 'Group Applicable' is a single value or 'All'
                 if (itemGroup.trim() !== 'All' && itemGroup.trim() !== activeFilters.group) {
                     return false;
                 }
@@ -472,13 +485,27 @@
         renderContent(currentDay);	
     };
 
-    function getUniqueValues(data, header) {
-        if (!header) return [];
-        const values = data.map(item => item[header]).filter(v => v && v.trim());
-        if (header === staffHeader) {
-            const allStaff = values.flatMap(v => v.split('/').map(s => s.trim()));
-            return [...new Set(allStaff)].sort();
-        }
+    function getUniqueStaffMembers(data) {
+        // Collect all staff names from all rows, splitting by comma and slash
+        const staffSet = new Set();
+        data.forEach(item => {
+            const raw = item[staffHeader] || '';
+            raw.split(',').forEach(part => {
+                part.split('/').forEach(name => {
+                    const trimmed = name.trim();
+                    if (trimmed && trimmed !== 'All Staff' && trimmed !== 'UK Staff') {
+                        staffSet.add(trimmed);
+                    }
+                });
+            });
+        });
+        // Always include 'All Staff' at the top
+        return ['All Staff', ...Array.from(staffSet).sort()];
+    }
+
+    function getUniqueGroupValues(data) {
+        if (!groupHeader) return [];
+        const values = data.map(item => item[groupHeader]).filter(v => v && v.trim());
         return [...new Set(values)].sort();
     }
     
@@ -503,15 +530,14 @@
     }
 
 
-    function renderFilters(data) {
         filtersContainer.innerHTML = '';
         const dayData = data.filter(item => item[dateHeader] === currentDay);
 
-        const staffValues = getUniqueValues(dayData, staffHeader);
-        const groupValues = getUniqueValues(dayData, groupHeader);
-        
+        const staffValues = getUniqueStaffMembers(dayData);
+        const groupValues = getUniqueGroupValues(dayData);
+
         let filterHtml = '<div class="flex flex-col md:flex-row w-full gap-4">';
-        
+
         if (isStaffMode && staffValues.length > 0) {
             filterHtml += createDropdown('staff', 'Staff Allocation', staffValues);
         }
